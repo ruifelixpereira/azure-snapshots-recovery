@@ -6,8 +6,10 @@ export interface VmFilter {
 
 // Define input type for the orchestrator
 export interface BatchOrchestratorInput {
-    targetSubnetId: string;
+    targetSubnetIds: string[]; // Array of subnet IDs
     targetResourceGroup: string;
+    maxTimeGenerated: string; // ISO datetime string
+    useOriginalIpAddress: boolean; // Whether to preserve original IP addresses
     vmFilter?: VmFilter[];
 }
 
@@ -26,8 +28,9 @@ export interface RecoverySnapshot {
 }
 
 export interface NewVmDetails {
-    targetSubnetId: string;
+    targetSubnetId: string; // Single subnet ID for individual VM creation
     targetResourceGroup: string;
+    useOriginalIpAddress: boolean; // Whether to preserve original IP addresses
     sourceSnapshot: RecoverySnapshot;
 }
 
@@ -63,4 +66,14 @@ export interface JobLogEntry {
     diskProfile: 'os-disk' | 'data-disk';
     vmId?: string;
     ipAddress?: string;
+}
+
+export interface SubnetLocation {
+    subnetId: string;
+    location: string;
+}
+
+export interface RecoveryInfo {
+    snapshots: RecoverySnapshot[];
+    subnetLocations: SubnetLocation[];
 }

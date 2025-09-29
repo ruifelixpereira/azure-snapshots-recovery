@@ -1,23 +1,25 @@
 // Disk snapshots
 import { ILogger } from '../common/logger';
 import { ComputeManagementClient } from "@azure/arm-compute";
+import { NetworkManagementClient } from "@azure/arm-network";
 import { DefaultAzureCredential } from "@azure/identity";
 import { VmError, _getString } from "../common/apperror";
 import { NewVmDetails, VmDisk, VmNic, VmInfo } from '../common/interfaces';
 import { formatDateYYYYMMDDTHHMM } from '../common/utils';
-import { ipRangeToString } from '@azure/storage-queue/dist/commonjs/SasIPRange';
 
  
 export class VmManager {
 
     private credential: DefaultAzureCredential;
     private computeClient: ComputeManagementClient;
+    private networkClient: NetworkManagementClient;
     private subscriptionId: string;
 
     constructor(private logger: ILogger, subscriptionId: string) {
         const credential = new DefaultAzureCredential();
         this.credential = credential;
         this.computeClient = new ComputeManagementClient(credential, subscriptionId);
+        this.networkClient = new NetworkManagementClient(credential, subscriptionId);
         this.subscriptionId = subscriptionId;
     }
 
@@ -72,69 +74,78 @@ export class VmManager {
 
 
     /**
-     * Creates a network interface in the specified subnet
+     * Creates a network interface in the specified subnet using Azure SDK
      * @param resourceGroupName Resource group name
      * @param nicName Network interface name
      * @param subnetId Full subnet ID
      * @param location Azure region
-     * @returns Network interface ID
+     * @param useOriginalIpAddress Whether to use original IP or dynamic allocation
+     * @param originalIpAddress Original IP address from snapshot (optional)
+     * @returns Network interface details
      */
     private async createNetworkInterface(
         resourceGroupName: string, 
         nicName: string, 
         subnetId: string, 
-        location: string
+        location: string,
+        useOriginalIpAddress: boolean,
+        originalIpAddress?: string
     ): Promise<VmNic> {
         try {
             this.logger.info(`Creating network interface ${nicName} in subnet ${subnetId}`);
-
-            // Use REST API to create network interface (avoiding SDK dependency)
-            const token = await this.credential.getToken('https://management.azure.com/.default');
-
-            const nicUrl = `https://management.azure.com/subscriptions/${this.subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Network/networkInterfaces/${nicName}?api-version=2021-05-01`;
             
-            const nicBody = {
+            // Determine IP allocation method and address
+            let ipConfiguration: any;
+            
+            if (useOriginalIpAddress && originalIpAddress) {
+                this.logger.info(`Using static IP allocation with original IP: ${originalIpAddress}`);
+                ipConfiguration = {
+                    name: 'ipconfig1',
+                    privateIPAllocationMethod: 'Static',
+                    privateIPAddress: originalIpAddress,
+                    subnet: {
+                        id: subnetId
+                    }
+                };
+            } else {
+                if (useOriginalIpAddress && !originalIpAddress) {
+                    this.logger.warn(`Original IP address requested but not available, falling back to dynamic allocation`);
+                } else {
+                    this.logger.info(`Using dynamic IP allocation`);
+                }
+                
+                ipConfiguration = {
+                    name: 'ipconfig1',
+                    privateIPAllocationMethod: 'Dynamic',
+                    subnet: {
+                        id: subnetId
+                    }
+                };
+            }
+
+            // Create network interface using Azure SDK
+            const nicParameters = {
                 location: location,
-                properties: {
-                    ipConfigurations: [
-                        {
-                            name: 'ipconfig1',
-                            properties: {
-                                privateIPAllocationMethod: 'Dynamic',
-                                subnet: {
-                                    id: subnetId
-                                }
-                            }
-                        }
-                    ]
-                },
+                ipConfigurations: [ipConfiguration],
                 tags: {
-                    "smcp-creation": "recovery"
+                    "smcp-creation": "recovery",
+                    "ip-allocation": useOriginalIpAddress ? "static-requested" : "dynamic"
                 }
             };
 
-            const response = await fetch(nicUrl, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token.token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(nicBody)
-            });
+            const nicResult = await this.networkClient.networkInterfaces.beginCreateOrUpdateAndWait(
+                resourceGroupName,
+                nicName,
+                nicParameters
+            );
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-
-            const nicResult = await response.json();
             const nicOutput: VmNic = {
                 id: nicResult.id,
                 name: nicName,
-                ipAddress: nicResult.properties.ipConfigurations[0].properties.privateIPAddress
-            }
+                ipAddress: nicResult.ipConfigurations?.[0]?.privateIPAddress || 'Unknown'
+            };
 
-            this.logger.info(`Successfully created network interface: ${nicOutput.id}`);
+            this.logger.info(`Successfully created network interface: ${nicOutput.id} with IP: ${nicOutput.ipAddress}`);
             return nicOutput;
 
         } catch (error) {
@@ -144,6 +155,7 @@ export class VmManager {
         }
     }
 
+
     public async createVirtualMachine(source: NewVmDetails, osDisk: VmDisk): Promise<VmInfo> {
 
         try {
@@ -151,12 +163,14 @@ export class VmManager {
             let vmExists = false;
 
             if (!vmExists) {
-                // Step 1: Create network interface in the target subnet
+                // Create network interface in the target subnet
                 const nic = await this.createNetworkInterface(
                     source.targetResourceGroup,
                     `${source.sourceSnapshot.vmName}-nic`,
                     source.targetSubnetId,
-                    source.sourceSnapshot.location
+                    source.sourceSnapshot.location,
+                    source.useOriginalIpAddress,
+                    source.sourceSnapshot.ipAddress
                 );
 
                 // Step 2: Create the virtual machine

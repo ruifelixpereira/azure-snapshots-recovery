@@ -15,4 +15,10 @@ All VM creation results are logged to Azure Monitor (Log Analytics). Use a workb
 
 ## TODO
 
-Local dev: az login user must be storage blob onwer + quque data controbutor + table data contributor on the sotrag accun tused by function app
+- Local dev: az login user must be storage blob owner + queue data contributor + table data contributor on the storage account used by function app
+- restore single vm or vm group from the last snapshots
+- test concurrency
+- trigger orchestrator with a blob queue
+- change recovery cli
+- test retain IP or not
+

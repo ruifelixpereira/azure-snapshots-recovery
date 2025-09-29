@@ -36,8 +36,10 @@ const httpStart: HttpHandler = async (request: HttpRequest, context: InvocationC
             // Log the validated input details (helpful for debugging)
             context.log('✅ Input validation passed using strict validator');
             context.log('📋 Validated input:', {
-                targetSubnetId: input.targetSubnetId,
+                targetSubnetIds: input.targetSubnetIds,
+                subnetCount: input.targetSubnetIds.length,
                 targetResourceGroup: input.targetResourceGroup,
+                useOriginalIpAddress: input.useOriginalIpAddress,
                 hasVmFilters: !!input.vmFilter,
                 vmFilterCount: input.vmFilter ? input.vmFilter.length : 0
             });
@@ -55,7 +57,7 @@ const httpStart: HttpHandler = async (request: HttpRequest, context: InvocationC
         const instanceId: string = await client.startNew(request.params.orchestratorName, { input });
 
         context.log(`✅ Successfully started orchestration '${request.params.orchestratorName}' with ID = '${instanceId}'`);
-        context.log('🎯 Processing subnet:', input.targetSubnetId.split('/').pop()); // Log subnet name only
+        context.log('🎯 Processing subnets:', input.targetSubnetIds.map(id => id.split('/').pop()).join(', ')); // Log subnet names
         context.log('📁 Target resource group:', input.targetResourceGroup);
 
         // Return the standard durable functions response

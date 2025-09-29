@@ -15,17 +15,18 @@ export class ResourceGraphManager {
     }
 
     // Get the most recent snapshots in a certain region for all VMs
-    public async getMostRecentSnapshotsInRegion(region: string): Promise<Array<RecoverySnapshot>> {
+    public async getMostRecentSnapshotsInRegions(regions: string[], maxTimeGenerated: Date): Promise<Array<RecoverySnapshot>> {
 
         try {
 
             const query = `resources
                     | where type == 'microsoft.compute/snapshots'
-                    | where location == '${region}'
+                    | where location in (${regions.map(region => `'${region}'`).join(", ")})
                     | where tags['smcp-recovery-info'] != ''
-                    | extend smcpRecoveryInfo = tostring(tags['smcp-recovery-info'])
+                    | extend smcpRecoveryInfo = tostring(tags['smcp-recovery-info']), timeCreated = todatetime(properties.timeCreated)
                     | extend vmName = extract('vmName\\\":\\\"([^\\\"]+)', 1, smcpRecoveryInfo)
-                    | project snapshotName = name, vmName, timeCreated = todatetime(properties.timeCreated)
+                    | where timeCreated <= todatetime('${maxTimeGenerated.toISOString()}')
+                    | project snapshotName = name, vmName, timeCreated
                     | summarize latestSnapshotTime = max(timeCreated) by vmName
                     | join kind=inner (
                         resources

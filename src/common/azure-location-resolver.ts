@@ -2,6 +2,7 @@
 import { DefaultAzureCredential } from '@azure/identity';
 import { parseSubnetId, getSubscriptionAndResourceGroup } from './azure-resource-utils';
 import { ILogger } from './logger';
+import { SubnetLocation } from './interfaces';
 
 // Note: You'll need to install these packages:
 // npm install @azure/arm-network @azure/arm-resources
@@ -56,6 +57,39 @@ export class AzureLocationResolver {
     } catch (error) {
       this.logger.error(`Failed to get subnet location for ${subnetId}:`, error);
       throw new Error(`Could not determine location for subnet ${subnetId}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gets locations for multiple subnet IDs
+   * @param subnetIds Array of subnet resource IDs
+   * @returns Array of SubnetLocation objects
+   */
+  async getSubnetLocations(subnetIds: string[]): Promise<SubnetLocation[]> {
+    try {
+      this.logger.info(`Getting locations for ${subnetIds.length} subnets`);
+      
+      // Process all subnets in parallel
+      const locationPromises = subnetIds.map(async (subnetId) => {
+        try {
+          const location = await this.getSubnetLocation(subnetId);
+          return {
+            subnetId,
+            location
+          } as SubnetLocation;
+        } catch (error) {
+          this.logger.error(`Failed to get location for subnet ${subnetId}:`, error);
+          throw error;
+        }
+      });
+
+      const results = await Promise.all(locationPromises);
+      this.logger.info(`Successfully retrieved locations for ${results.length} subnets`);
+      return results;
+
+    } catch (error) {
+      this.logger.error('Failed to get subnet locations:', error);
+      throw new Error(`Could not determine locations for subnets: ${error.message}`);
     }
   }
 
@@ -181,6 +215,17 @@ export class LocationUtils {
   static async getSubnetLocation(subnetId: string, logger: ILogger): Promise<string> {
     const resolver = new AzureLocationResolver(logger);
     return await resolver.getSubnetLocation(subnetId);
+  }
+
+  /**
+   * Quick method to get multiple subnet locations using the resolver
+   * @param subnetIds Array of subnet resource IDs
+   * @param logger Logger instance
+   * @returns Array of SubnetLocation objects
+   */
+  static async getSubnetLocations(subnetIds: string[], logger: ILogger): Promise<SubnetLocation[]> {
+    const resolver = new AzureLocationResolver(logger);
+    return await resolver.getSubnetLocations(subnetIds);
   }
 
   /**
