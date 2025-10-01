@@ -16,9 +16,32 @@ All VM creation results are logged to Azure Monitor (Log Analytics). Use a workb
 ## TODO
 
 - Local dev: az login user must be storage blob owner + queue data contributor + table data contributor on the storage account used by function app
+
 - restore single vm or vm group from the last snapshots
-- test concurrency
-- trigger orchestrator with a blob queue
 - change recovery cli
-- test retain IP or not
+- update documentation
+- deal with data disks
+
+
+
+## Error Handling
+
+Best Practices for Activity Error Handling
+1. Classify Errors by Type
+There are three main categories of errors to handle differently:
+
+Transient Errors (Should Retry)
+Network timeouts
+Temporary Azure service unavailability
+Rate limiting (429 errors)
+SQL connection timeouts
+Permanent Errors (Should NOT Retry)
+Invalid input data
+Resource not found (404)
+Authentication/authorization failures (401/403)
+Business logic violations
+Fatal Errors (Should Fail Fast)
+Configuration errors
+Critical system failures
+Unrecoverable data corruption
 

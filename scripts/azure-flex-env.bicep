@@ -25,7 +25,6 @@ var deploymentStorageContainerName = 'deployment'
 
 var queuesToCreate = [
   'recovery-jobs'
-  'recovery-control'
 ]
 
 // Storage Account

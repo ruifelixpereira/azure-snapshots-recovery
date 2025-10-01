@@ -243,10 +243,7 @@ export function createDefaultBatchOrchestratorInput(): BatchOrchestratorInput {
     targetResourceGroup: 'example-rg',
     maxTimeGenerated: new Date().toISOString(), // Current datetime as ISO string
     useOriginalIpAddress: false, // Default to false for dynamic IP allocation
-    vmFilter: [
-      { vm: "vm-01"  }, 
-      { vm: "vm-02"  }
-    ]
+    vmFilter: ["vm-01", "vm-02"]
   };
 }
 

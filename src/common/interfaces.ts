@@ -1,16 +1,12 @@
 // interfaces.ts
 
-export interface VmFilter {
-    vm: string;
-}
-
 // Define input type for the orchestrator
 export interface BatchOrchestratorInput {
     targetSubnetIds: string[]; // Array of subnet IDs
     targetResourceGroup: string;
     maxTimeGenerated: string; // ISO datetime string
     useOriginalIpAddress: boolean; // Whether to preserve original IP addresses
-    vmFilter?: VmFilter[];
+    vmFilter?: string[];
 }
 
 export interface RecoverySnapshot {
