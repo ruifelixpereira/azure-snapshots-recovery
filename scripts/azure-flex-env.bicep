@@ -11,7 +11,7 @@ param funcAppName string = '${prefix}snaprec-fa01'
 param location string = resourceGroup().location
 param appInsightsName string = '${prefix}snaprec-ai01'
 param workspaceName string = '${prefix}snapmng-law01'
-param tableName string = 'SnapshotsRecovery_CL'
+param tableName string = 'SnapshotsRecoveryJobs_CL'
 param dcrName string = '${prefix}snaprec-dcr01'
 param dceName string = '${prefix}snaprec-dce01'
 param workbookJson string
@@ -209,6 +209,10 @@ resource customTable 'Microsoft.OperationalInsights/workspaces/tables@2022-10-01
           type: 'datetime'
         }
         {
+          name: 'batchId'
+          type: 'string'
+        }
+        {
           name: 'jobId'
           type: 'string'
         }
@@ -287,6 +291,10 @@ resource dcr 'Microsoft.Insights/dataCollectionRules@2021-09-01-preview' = {
                   type: 'datetime'
                 }
                 {
+                  name: 'batchId'
+                  type: 'string'
+                }
+                {
                   name: 'jobId'
                   type: 'string'
                 }
@@ -357,7 +365,7 @@ resource dcr 'Microsoft.Insights/dataCollectionRules@2021-09-01-preview' = {
         destinations: [
           'laDest'
         ]
-        transformKql: 'source | project TimeGenerated, jobId, jobOperation, jobStatus, jobType, message, snapshotId, snapshotName, vmName, vmSize, diskSku, diskProfile, vmId, ipAddress'
+        transformKql: 'source | project TimeGenerated, batchId, jobId, jobOperation, jobStatus, jobType, message, snapshotId, snapshotName, vmName, vmSize, diskSku, diskProfile, vmId, ipAddress'
         outputStream: 'Custom-${tableName}'
       }
     ]

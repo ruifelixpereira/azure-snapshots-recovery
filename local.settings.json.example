@@ -2,14 +2,13 @@
   "IsEncrypted": false,
   "Values": {
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "AzureWebJobsStorage": "xxxxxxx",
     "AzureWebJobsStorage__accountname": "cccccccccc",
     "AZURE_TENANT_ID": "00000000-1111-1111-0000-000000000000",
     "AZURE_CLIENT_ID": "00000000-1111-1111-0000-000000000000",
     "AZURE_CLIENT_SECRET": "vvvvvvvvvvvvvvvv",
     "LOGS_INGESTION_ENDPOINT": "https://bbbbbbbbbbb.ingest.monitor.azure.com",
     "LOGS_INGESTION_RULE_ID": "aaaaaaaaaa",
-    "LOGS_INGESTION_STREAM_NAME": "Custom-SnapshotsRecovery_CL-source",
+    "LOGS_INGESTION_STREAM_NAME": "Custom-SnapshotsRecoveryJobs_CL-source",
     "SNAP_RECOVERY_BATCH_SIZE": "95",
     "SNAP_RECOVERY_DELAY_BETWEEN_BATCHES": "10"
   }

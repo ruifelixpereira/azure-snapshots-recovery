@@ -1,7 +1,7 @@
 // Type validation utilities for Azure Functions
 // This module provides runtime type checking for TypeScript interfaces
 
-import { BatchOrchestratorInput } from './interfaces';
+import { RecoveryBatch } from './interfaces';
 
 
 /**
@@ -9,7 +9,7 @@ import { BatchOrchestratorInput } from './interfaces';
  * @param obj The object to validate
  * @returns True if the object matches BatchOrchestratorInput interface
  */
-export function isBatchOrchestratorInput(obj: any): obj is BatchOrchestratorInput {
+export function isBatchOrchestratorInput(obj: any): obj is RecoveryBatch {
     return obj &&
            Array.isArray(obj.targetSubnetIds) &&
            obj.targetSubnetIds.every((id: any) => typeof id === 'string') &&
@@ -117,7 +117,7 @@ export function validateUseOriginalIpAddress(value: any): boolean {
  * @returns Validated BatchOrchestratorInput with normalized Date objects
  * @throws Error if validation fails
  */
-export function validateBatchOrchestratorInput(obj: any): BatchOrchestratorInput {
+export function validateBatchOrchestratorInput(obj: any): RecoveryBatch {
   if (!isBatchOrchestratorInput(obj)) {
     const errors: string[] = [];
     
@@ -166,7 +166,7 @@ export function validateBatchOrchestratorInput(obj: any): BatchOrchestratorInput
   }
   
   // Validate the input with subnet ID array
-  const validated: BatchOrchestratorInput = {
+  const validated: RecoveryBatch = {
     targetSubnetIds: obj.targetSubnetIds,
     targetResourceGroup: obj.targetResourceGroup,
     maxTimeGenerated: validateMaxTimeGenerated(obj.maxTimeGenerated),
@@ -183,7 +183,7 @@ export function validateBatchOrchestratorInput(obj: any): BatchOrchestratorInput
  * @returns Validated BatchOrchestratorInput with additional checks
  * @throws Error if validation fails
  */
-export function validateBatchOrchestratorInputStrict(obj: any): BatchOrchestratorInput {
+export function validateBatchOrchestratorInputStrict(obj: any): RecoveryBatch {
   // First run basic validation
   const input = validateBatchOrchestratorInput(obj);
   
@@ -237,7 +237,7 @@ export function parseAndValidate<T>(
  * Creates a default BatchOrchestratorInput with placeholder values
  * @returns Default BatchOrchestratorInput object
  */
-export function createDefaultBatchOrchestratorInput(): BatchOrchestratorInput {
+export function createDefaultBatchOrchestratorInput(): RecoveryBatch {
   return {
     targetSubnetIds: ['/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Network/virtualNetworks/example-vnet/subnets/example-subnet'],
     targetResourceGroup: 'example-rg',
@@ -268,7 +268,7 @@ export function hasRequiredStringProperties(obj: any, requiredStringProps: strin
  * @param input Raw input object
  * @returns Clean BatchOrchestratorInput object with normalized dates
  */
-export function sanitizeBatchOrchestratorInput(input: any): BatchOrchestratorInput {
+export function sanitizeBatchOrchestratorInput(input: any): RecoveryBatch {
   if (typeof input !== 'object' || input === null) {
     throw new Error('Input must be an object');
   }
@@ -286,7 +286,7 @@ export function sanitizeBatchOrchestratorInput(input: any): BatchOrchestratorInp
     throw new Error(`Invalid maxTimeGenerated: ${error.message}`);
   }
 
-  const sanitized: BatchOrchestratorInput = {
+  const sanitized: RecoveryBatch = {
     targetSubnetIds: Array.isArray(input.targetSubnetIds) 
       ? input.targetSubnetIds.map((id: string) => String(id || '').trim())
       : Array.isArray(input.targetSubnetId)

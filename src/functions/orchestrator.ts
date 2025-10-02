@@ -1,9 +1,10 @@
 import * as df from 'durable-functions';
 import { OrchestrationContext, OrchestrationHandler } from 'durable-functions';
 import { GET_MOST_RECENT_SNAPSHOTS_ACTIVITY, CREATE_VM_ACTIVITY } from '../common/constants';
-import { BatchOrchestratorInput } from '../common/interfaces';
+import { RecoveryBatch } from '../common/interfaces';
 import { AzureLogger } from "../common/logger";
 import { _getString } from '../common/apperror';
+import { LogManager } from "../controllers/log.manager";
 import { executeActivityWithRetry, RetryPolicies } from '../common/retry-utils';
 import { PermanentError, TransientError, FatalError, classifyError } from '../common/errors';
 
@@ -16,7 +17,7 @@ const batchOrchestrator: OrchestrationHandler = function* (context: Orchestratio
 
     try {
         // Get input parameters from the orchestrator with proper typing
-        const input = context.df.getInput() as BatchOrchestratorInput;
+        const input = context.df.getInput() as RecoveryBatch;
         
         // Log the input details for debugging
         logger.info('Orchestrator input received:', {
@@ -25,7 +26,8 @@ const batchOrchestrator: OrchestrationHandler = function* (context: Orchestratio
             targetResourceGroup: input.targetResourceGroup,
             maxTimeGenerated: input.maxTimeGenerated,
             useOriginalIpAddress: input.useOriginalIpAddress,
-            vmFilterCount: input.vmFilter?.length || 0
+            vmFilterCount: input.vmFilter?.length || 0,
+            batchId: input.batchId
         });
 
         // Extract parameters with defaults
@@ -111,7 +113,8 @@ const batchOrchestrator: OrchestrationHandler = function* (context: Orchestratio
                     targetSubnetId: matchingSubnet.subnetId,
                     targetResourceGroup: input.targetResourceGroup,
                     useOriginalIpAddress: input.useOriginalIpAddress,
-                    sourceSnapshot: snapshot
+                    sourceSnapshot: snapshot,
+                    batchId: input.batchId
                 });
             });
             

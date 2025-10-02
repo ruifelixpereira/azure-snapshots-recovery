@@ -5,12 +5,12 @@ import { InvocationContext } from '@azure/functions';
 import { GET_MOST_RECENT_SNAPSHOTS_ACTIVITY } from '../common/constants';
 import { AzureLogger } from "../common/logger";
 import { ResourceGraphManager } from "../controllers/graph.manager";
-import { BatchOrchestratorInput, RecoveryInfo, RecoverySnapshot, SubnetLocation } from '../common/interfaces';
+import { RecoveryBatch, RecoveryInfo, RecoverySnapshot, SubnetLocation } from '../common/interfaces';
 import { AzureLocationResolver } from '../common/azure-location-resolver';
 import { PermanentError, TransientError, BusinessError, AzureError, classifyError } from '../common/errors';
 
 // Activity functions receive context as the second parameter
-const getSnapshotsActivity: ActivityHandler = async (input: BatchOrchestratorInput, context: InvocationContext): Promise<RecoveryInfo> => {
+const getSnapshotsActivity: ActivityHandler = async (input: RecoveryBatch, context: InvocationContext): Promise<RecoveryInfo> => {
 
     const logger = new AzureLogger(context);
     logger.info('Activity function getSnapshotsActivity trigger request.');

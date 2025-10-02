@@ -1,12 +1,13 @@
 // interfaces.ts
 
 // Define input type for the orchestrator
-export interface BatchOrchestratorInput {
+export interface RecoveryBatch {
     targetSubnetIds: string[]; // Array of subnet IDs
     targetResourceGroup: string;
     maxTimeGenerated: string; // ISO datetime string
     useOriginalIpAddress: boolean; // Whether to preserve original IP addresses
     vmFilter?: string[];
+    batchId?: string;
 }
 
 export interface RecoverySnapshot {
@@ -28,6 +29,7 @@ export interface NewVmDetails {
     targetResourceGroup: string;
     useOriginalIpAddress: boolean; // Whether to preserve original IP addresses
     sourceSnapshot: RecoverySnapshot;
+    batchId: string;
 }
 
 export interface VmDisk {
@@ -49,6 +51,7 @@ export interface VmNic {
 }
 
 export interface JobLogEntry {
+    batchId: string;
     jobId: string;
     jobOperation: 'VM Create Start' | 'VM Create End' | 'Error';
     jobStatus: 'Restore In Progress' | 'Restore Completed' | 'Restore Failed';

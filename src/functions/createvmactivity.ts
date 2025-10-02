@@ -32,6 +32,7 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
         // Log start
         const msgStart = `Starting the creation of VM ${input.sourceSnapshot.vmName} from ${input.sourceSnapshot.id}`
         const logEntryStart: JobLogEntry = {
+            batchId: input.batchId,
             jobId: jobId,
             jobOperation: 'VM Create Start',
             jobStatus: 'Restore In Progress',
@@ -98,6 +99,7 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
 
         // Activity failed
         const logEntryFailed: JobLogEntry = {
+            batchId: input.batchId,
             jobId: jobId,
             jobOperation: 'Error',
             jobStatus: 'Restore Failed',

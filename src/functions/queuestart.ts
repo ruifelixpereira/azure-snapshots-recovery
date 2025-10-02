@@ -1,13 +1,13 @@
 import { app, InvocationContext } from '@azure/functions';
 import * as df from 'durable-functions';
-import { BatchOrchestratorInput } from '../common/interfaces';
+import { RecoveryBatch } from '../common/interfaces';
 import { isBatchOrchestratorInput, validateBatchOrchestratorInput, validateBatchOrchestratorInputStrict } from '../common/validation';
+import { generateGuid } from '../common/utils';
 
-const queueStart = async (queueItem: BatchOrchestratorInput, context: InvocationContext): Promise<void> => {
+const queueStart = async (queueItem: RecoveryBatch, context: InvocationContext): Promise<void> => {
 
     try {
         const client = df.getClient(context);
-        context.log('✅ Durable Functions client obtained');
         
         // Parse queue message
         let messageText: string;
@@ -32,28 +32,21 @@ const queueStart = async (queueItem: BatchOrchestratorInput, context: Invocation
         context.log('📨 Processing queue message:', messageText.substring(0, 200)); // Log first 200 chars
 
         // Parse and validate JSON
-        let input: BatchOrchestratorInput;
+        let input: RecoveryBatch;
         try {
             context.log('🔍 Parsing JSON...');
             const parsed = JSON.parse(messageText);
-            context.log('✅ JSON parsed successfully');
-            
-            // Check if input matches BatchOrchestratorInput structure
-            context.log('🔍 Validating with type guard...');
+
+            // Check if input matches RecoveryBatch structure
             if (isBatchOrchestratorInput(parsed)) {
                 input = parsed;
-                context.log('✅ Input validation passed using type guard');
             } else {
-                context.log('🔍 Type guard failed, trying detailed validator...');
                 // Try to validate and get detailed error
                 input = validateBatchOrchestratorInput(parsed);
-                context.log('✅ Input validation passed using validator');
             }
 
             // Validate subnetid and resource group syntax
-            context.log('🔍 Running strict validation...');
             input = validateBatchOrchestratorInputStrict(input);
-            context.log('✅ Input validation passed using strict validator');
             
             // Log the validated input details (helpful for debugging)
             context.log('📋 Validated input:', {
@@ -77,6 +70,10 @@ const queueStart = async (queueItem: BatchOrchestratorInput, context: Invocation
         // Start the orchestrator with the validated input
         try {
             context.log('🔍 Starting orchestrator...');
+
+            // Create Batch Id for correlation
+            input.batchId = generateGuid();
+
             // The input will be available in orchestrator via context.df.getInput()
             const instanceId: string = await client.startNew('batchOrchestrator', { input });
             context.log('✅ Orchestrator started successfully');

@@ -1,9 +1,9 @@
-export class AppError extends Error {
+export class AppComponentError extends Error {
     
     constructor(error: any) {
         const message = error instanceof Error ? error.message : error;
         super(message);
-        Object.setPrototypeOf(this, AppError.prototype);
+        Object.setPrototypeOf(this, AppComponentError.prototype);
     }
 
 }
@@ -42,8 +42,7 @@ export function ensureErrorType(err: unknown): Error {
     }
 }
 
-
-export class ResourceGroupTagsError extends AppError {
+export class ResourceGroupTagsError extends AppComponentError {
     
     constructor(error: any) {
         super(error);
@@ -52,7 +51,7 @@ export class ResourceGroupTagsError extends AppError {
 
 }
 
-export class StorageQueueError extends AppError {
+export class StorageQueueError extends AppComponentError {
     
     constructor(error: any) {
         super(error);
@@ -61,7 +60,7 @@ export class StorageQueueError extends AppError {
 
 }
 
-export class KeyVaultError extends AppError {
+export class KeyVaultError extends AppComponentError {
     
     constructor(error: any) {
         super(error);
@@ -70,7 +69,7 @@ export class KeyVaultError extends AppError {
 
 }
 
-export class VmError extends AppError {
+export class VmError extends AppComponentError {
     
     constructor(error: any) {
         super(error);
@@ -79,7 +78,7 @@ export class VmError extends AppError {
 
 }
 
-export class ResourceGraphError extends AppError {
+export class ResourceGraphError extends AppComponentError {
     
     constructor(error: any) {
         super(error);
@@ -93,7 +92,7 @@ export interface LogIngestionAggregateError {
     log: string;
 }
 
-export class LogIngestionError extends AppError {
+export class LogIngestionError extends AppComponentError {
 
     public aggregateErrors?: LogIngestionAggregateError[];
 
