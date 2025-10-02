@@ -17,7 +17,6 @@ All VM creation results are logged to Azure Monitor (Log Analytics). Use a workb
 
 - Local dev: az login user must be storage blob owner + queue data contributor + table data contributor on the storage account used by function app
 
-- restore single vm or vm group from the last snapshots
 - change recovery cli
 - update documentation
 - deal with data disks
