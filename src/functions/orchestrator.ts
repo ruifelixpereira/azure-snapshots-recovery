@@ -1,10 +1,9 @@
 import * as df from 'durable-functions';
 import { OrchestrationContext, OrchestrationHandler } from 'durable-functions';
-import { GET_MOST_RECENT_SNAPSHOTS_ACTIVITY, CREATE_VM_ACTIVITY } from '../common/constants';
+import { GET_MOST_RECENT_SNAPSHOTS_ACTIVITY, CREATE_VM_ACTIVITY, CREATE_VM_ASYNC_ACTIVITY } from '../common/constants';
 import { RecoveryBatch } from '../common/interfaces';
 import { AzureLogger } from "../common/logger";
 import { _getString } from '../common/apperror';
-import { LogManager } from "../controllers/log.manager";
 import { executeActivityWithRetry, RetryPolicies } from '../common/retry-utils';
 import { PermanentError, TransientError, FatalError, classifyError } from '../common/errors';
 
@@ -26,6 +25,7 @@ const batchOrchestrator: OrchestrationHandler = function* (context: Orchestratio
             targetResourceGroup: input.targetResourceGroup,
             maxTimeGenerated: input.maxTimeGenerated,
             useOriginalIpAddress: input.useOriginalIpAddress,
+            waitForVmCreationCompletion: input.waitForVmCreationCompletion,
             vmFilterCount: input.vmFilter?.length || 0,
             batchId: input.batchId
         });
@@ -108,14 +108,27 @@ const batchOrchestrator: OrchestrationHandler = function* (context: Orchestratio
                     });
                 }
                 
-                // Create VM activity call 
-                return context.df.callActivity(CREATE_VM_ACTIVITY, {
-                    targetSubnetId: matchingSubnet.subnetId,
-                    targetResourceGroup: input.targetResourceGroup,
-                    useOriginalIpAddress: input.useOriginalIpAddress,
-                    sourceSnapshot: snapshot,
-                    batchId: input.batchId
-                });
+                // Create VM activity call (with WAIT or NO WAIT)
+                if (input.waitForVmCreationCompletion) {
+                    // Wait for VM creation to complete
+                    return context.df.callActivity(CREATE_VM_ACTIVITY, {
+                        targetSubnetId: matchingSubnet.subnetId,
+                        targetResourceGroup: input.targetResourceGroup,
+                        useOriginalIpAddress: input.useOriginalIpAddress,
+                        sourceSnapshot: snapshot,
+                        batchId: input.batchId
+                    });
+                }
+                else {
+                    return context.df.callActivity(CREATE_VM_ASYNC_ACTIVITY, {
+                        targetSubnetId: matchingSubnet.subnetId,
+                        targetResourceGroup: input.targetResourceGroup,
+                        useOriginalIpAddress: input.useOriginalIpAddress,
+                        sourceSnapshot: snapshot,
+                        batchId: input.batchId
+                    });
+                    
+                }
             });
             
             const batchResults = yield context.df.Task.all(batchTasks);

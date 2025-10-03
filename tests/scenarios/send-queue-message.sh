@@ -115,6 +115,7 @@ else
     "targetResourceGroup": "snap-second",
     "maxTimeGenerated": "2025-09-27T10:30:00.000Z",
     "useOriginalIpAddress": false,
+    "waitForVmCreationCompletion": false,
     "vmFilter": [
         { "vm": "vm-001" },
         { "vm": "vm-002" }

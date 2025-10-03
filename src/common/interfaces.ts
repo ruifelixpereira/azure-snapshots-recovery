@@ -6,6 +6,7 @@ export interface RecoveryBatch {
     targetResourceGroup: string;
     maxTimeGenerated: string; // ISO datetime string
     useOriginalIpAddress: boolean; // Whether to preserve original IP addresses
+    waitForVmCreationCompletion: boolean; // Whether to wait for VM creation to complete
     vmFilter?: string[];
     batchId?: string;
 }
@@ -50,10 +51,30 @@ export interface VmNic {
     ipAddress: string;
 }
 
+export interface VmCreationPollMessage {
+    pollerUrl: string;
+    operationId: string;
+    vmName: string;
+    targetResourceGroup: string;
+    sourceSnapshot: RecoverySnapshot;
+    nicInfo: VmNic;
+    jobId: string;
+    batchId: string;
+    createdAt: string; // ISO datetime
+    retryCount?: number;
+}
+
+export interface VmCreationResult {
+    success: boolean;
+    vmInfo?: VmInfo;
+    pollerMessage?: VmCreationPollMessage;
+    error?: string;
+}
+
 export interface JobLogEntry {
     batchId: string;
     jobId: string;
-    jobOperation: 'VM Create Start' | 'VM Create End' | 'Error';
+    jobOperation: 'VM Create Start' | 'VM Create End' | 'VM Create Polling' |'Error';
     jobStatus: 'Restore In Progress' | 'Restore Completed' | 'Restore Failed';
     jobType: 'Restore';
     message: string;
@@ -75,4 +96,9 @@ export interface SubnetLocation {
 export interface RecoveryInfo {
     snapshots: RecoverySnapshot[];
     subnetLocations: SubnetLocation[];
+}
+
+export interface TrackingInfo {
+    batchId: string;
+    jobId: string;
 }

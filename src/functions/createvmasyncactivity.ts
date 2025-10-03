@@ -1,19 +1,21 @@
 import * as df from 'durable-functions';
 import { ActivityHandler } from 'durable-functions';
 import { InvocationContext } from '@azure/functions';
-import { CREATE_VM_ACTIVITY } from '../common/constants';
 import { AzureLogger } from '../common/logger';
-import { JobLogEntry, NewVmDetails, VmInfo, VmDisk } from '../common/interfaces';
+import { CREATE_VM_ASYNC_ACTIVITY, QUEUE_CONTROL_VM_CREATION } from '../common/constants';
+import { JobLogEntry, NewVmDetails, VmCreationResult, VmDisk } from '../common/interfaces';
 import { VmManager } from '../controllers/vm.manager';
+import { QueueManager } from "../controllers/queue.manager";
 import { extractSubscriptionIdFromResourceId, generateGuid } from '../common/utils';
 import { _getString } from '../common/apperror';
 import { LogManager } from "../controllers/log.manager";
-import { PermanentError, TransientError, BusinessError, AzureError, classifyError } from '../common/errors';
+import { PermanentError, TransientError, BusinessError, classifyError } from '../common/errors';
 
-const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: InvocationContext): Promise<VmInfo> => {
+
+const createVmAsyncActivity: ActivityHandler = async (input: NewVmDetails, context: InvocationContext): Promise<VmCreationResult> => {
 
     const logger = new AzureLogger(context);
-    logger.info('Activity function createVmActivity trigger request.');
+    logger.info('Activity function createVmAsyncActivity trigger request.');
 
     // Create Job Id (correlation Id) for operation
     const jobId = generateGuid();
@@ -39,9 +41,8 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
         }
 
         // Log start
-        const msgStart = `Starting the creation of VM ${input.sourceSnapshot.vmName} from ${input.sourceSnapshot.id}`
+        const msgStart = `Starting async VM creation for ${input.sourceSnapshot.vmName} from ${input.sourceSnapshot.id}`;
         const logEntryStart: JobLogEntry = {
-            batchId: input.batchId,
             jobId: jobId,
             jobOperation: 'VM Create Start',
             jobStatus: 'Restore In Progress',
@@ -52,8 +53,9 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
             diskProfile: input.sourceSnapshot.diskProfile,
             diskSku: input.sourceSnapshot.diskSku,
             snapshotId: input.sourceSnapshot.id,
-            snapshotName: input.sourceSnapshot.snapshotName
-        }
+            snapshotName: input.sourceSnapshot.snapshotName,
+            batchId: input.batchId
+        };
         const logManager = new LogManager(logger);
         await logManager.uploadLog(logEntryStart);
 
@@ -70,36 +72,47 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
             throw classifiedError;
         }
         
-        // Create VM in subnet (can have transient failures)
-        let vm: VmInfo;
+        // Start VM creation (async with queue polling)
+        let vmCreationResult: VmCreationResult;
         try {
-            vm = await vmManager.createVirtualMachine(input, osDisk, jobId);
-            logger.info(`✅ Successfully created VM: ${vm.name}`);
+
+            vmCreationResult = await vmManager.createVirtualMachineAsync(input, osDisk, jobId);
+            
+            if (vmCreationResult.success && vmCreationResult.pollerMessage) {
+                // VM creation started successfully, send to polling queue
+                logger.info(`✅ VM creation started for: ${input.sourceSnapshot.vmName}, sending to polling queue`);
+                
+                const queueManager = new QueueManager(logger, process.env.AzureWebJobsStorage__accountname || "", QUEUE_CONTROL_VM_CREATION);
+                const baseDelay = parseInt(process.env.SNAP_RECOVERY_VM_POLL_DELAY_SECONDS || '60'); // 1 minute base delay
+                await queueManager.sendMessage(JSON.stringify(vmCreationResult.pollerMessage), baseDelay);
+                
+                // Log polling initiated
+                const msgPolling = `VM creation polling initiated for ${input.sourceSnapshot.vmName}, operation ID: ${vmCreationResult.pollerMessage.operationId}`;
+                const logEntryPolling: JobLogEntry = {
+                    ...logEntryStart,
+                    jobOperation: 'VM Create Polling',
+                    jobStatus: 'Restore In Progress',
+                    message: msgPolling
+                };
+                await logManager.uploadLog(logEntryPolling);
+                
+                return vmCreationResult;
+                
+            } else {
+                // VM creation failed
+                throw new Error(vmCreationResult.error || 'VM creation failed with unknown error');
+            }
+            
         } catch (error) {
             const classifiedError = classifyVmManagerError(error, 'VM creation');
             throw classifiedError;
         }
-
-        // Log end
-        const msgEnd = `Finished the creation of VM ${input.sourceSnapshot.vmName} from ${input.sourceSnapshot.id}`
-        const logEntryEnd: JobLogEntry = {
-            ...logEntryStart,
-            jobOperation: 'VM Create End',
-            jobStatus: 'Restore Completed',
-            jobType: 'Restore',
-            message: msgEnd,
-            vmId: vm.id,
-            ipAddress: vm.ipAddress
-        }
-        await logManager.uploadLog(logEntryEnd);
-
-        return vm;
         
     } catch (error) {
         // Classify the error if it hasn't been classified yet
         const classifiedError = classifyError(error);
         
-        const msgFailActivity = `❌ Failed to create VM from snapshot ${input.sourceSnapshot?.id}: ${_getString(classifiedError)}`;
+        const msgFailActivity = `❌ Failed to start VM creation from snapshot ${input.sourceSnapshot?.id}: ${_getString(classifiedError)}`;
         logger.error(msgFailActivity, {
             errorType: classifiedError.constructor.name,
             isRetriable: classifiedError instanceof TransientError,
@@ -108,7 +121,6 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
 
         // Activity failed
         const logEntryFailed: JobLogEntry = {
-            batchId: input.batchId,
             jobId: jobId,
             jobOperation: 'Error',
             jobStatus: 'Restore Failed',
@@ -119,8 +131,9 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
             diskProfile: input.sourceSnapshot?.diskProfile,
             diskSku: input.sourceSnapshot?.diskSku,
             snapshotId: input.sourceSnapshot?.id,
-            snapshotName: input.sourceSnapshot?.snapshotName
-        }
+            snapshotName: input.sourceSnapshot?.snapshotName,
+            batchId: input.batchId
+        };
         const logManager = new LogManager(logger);
         try {
             await logManager.uploadLog(logEntryFailed);
@@ -128,10 +141,12 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
             logger.error('Failed to log error entry:', logError);
         }
 
-        // Re-throw the classified error
-        throw classifiedError;
+        // Return error result instead of throwing to allow batch processing to continue
+        return {
+            success: false,
+            error: classifiedError.message
+        };
     }
-
 };
 
 /**
@@ -140,11 +155,6 @@ const createVmActivity: ActivityHandler = async (input: NewVmDetails, context: I
 function classifyVmManagerError(error: any, operation: string): Error {
     const message = error.message || error.toString();
     
-    // IP address out of range of the subnet address space
-    if (message.includes('does not belong to the range of subnet prefix')) {
-        return new PermanentError(`${operation} failed - IP address does not belong to the range of subnet prefix: ${message}`, error);
-    }
-
     // Azure quota exceeded
     if (message.includes('quota') || message.includes('limit')) {
         return new TransientError(`${operation} failed due to quota limits: ${message}`, error);
@@ -156,7 +166,7 @@ function classifyVmManagerError(error: any, operation: string): Error {
     }
     
     // Authentication/authorization
-    if (message.includes('Unauthorized') || message.includes('Forbidden') || message.includes('does not have authorization')) {
+    if (message.includes('Unauthorized') || message.includes('Forbidden')) {
         return new PermanentError(`${operation} failed - authentication/authorization error: ${message}`, error);
     }
     
@@ -179,6 +189,7 @@ function classifyVmManagerError(error: any, operation: string): Error {
     return classifyError(error);
 }
 
-df.app.activity(CREATE_VM_ACTIVITY, { handler: createVmActivity });
+df.app.activity(CREATE_VM_ASYNC_ACTIVITY, { handler: createVmAsyncActivity });
 
-export default createVmActivity;
+export { CREATE_VM_ASYNC_ACTIVITY };
+export default createVmAsyncActivity;

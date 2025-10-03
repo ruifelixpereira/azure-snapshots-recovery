@@ -103,7 +103,7 @@
             "queryType": 1,
             "resourceType": "microsoft.resourcegraph/resources",
             "value": [
-              "/subscriptions/xxxxxxxxx/resourceGroups/snapshots-mng/providers/Microsoft.OperationalInsights/workspaces/snmjsnapmng-law01"
+              "/subscriptions/xxxxxxx/resourceGroups/snapshots-mng/providers/Microsoft.OperationalInsights/workspaces/snmjsnapmng-law01"
             ]
           }
         ],
@@ -618,6 +618,12 @@
                                 "text": "{0}{1}"
                               },
                               {
+                                "operator": "==",
+                                "thresholdValue": "VM Create Polling",
+                                "representation": "Pending",
+                                "text": "{0}{1}"
+                              },
+                              {
                                 "operator": "Default",
                                 "thresholdValue": null,
                                 "representation": "unknown",
@@ -752,7 +758,7 @@
     }
   ],
   "fallbackResourceIds": [
-    "/subscriptions/xxxxxxxxx/resourceGroups/snapshots-mng"
+    "/subscriptions/xxxxxxx/resourceGroups/snapshots-mng"
   ],
   "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
 }

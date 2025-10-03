@@ -10,6 +10,10 @@
     "LOGS_INGESTION_RULE_ID": "aaaaaaaaaa",
     "LOGS_INGESTION_STREAM_NAME": "Custom-SnapshotsRecoveryJobs_CL-source",
     "SNAP_RECOVERY_BATCH_SIZE": "95",
-    "SNAP_RECOVERY_DELAY_BETWEEN_BATCHES": "10"
+    "SNAP_RECOVERY_DELAY_BETWEEN_BATCHES": "10",
+    "SNAP_RECOVERY_MANDATORY_TAGS": "[{\"key\":\"app\",\"value\":\"xpto\"},{\"key\":\"owner\",\"value\":\"who\"}]",
+    "SNAP_RECOVERY_VM_POLL_MAX_RETRIES": "30",
+    "SNAP_RECOVERY_VM_POLL_DELAY_SECONDS": "60",
+    "SNAP_RECOVERY_VM_POLL_MAX_DELAY_SECONDS": "600"
   }
 }

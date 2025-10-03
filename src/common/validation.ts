@@ -16,6 +16,7 @@ export function isBatchOrchestratorInput(obj: any): obj is RecoveryBatch {
            typeof obj.targetResourceGroup === 'string' &&
            typeof obj.maxTimeGenerated === 'string' &&
            typeof obj.useOriginalIpAddress === 'boolean' &&
+           typeof obj.waitForVmCreationCompletion === 'boolean' &&
            (obj.vmFilter === undefined || Array.isArray(obj.vmFilter));
 }
 
@@ -112,6 +113,31 @@ export function validateUseOriginalIpAddress(value: any): boolean {
 }
 
 /**
+ * Validates waitForVmCreationCompletion field as a boolean
+ * @param value Boolean value or string that can be converted to boolean
+ * @returns Boolean value
+ * @throws Error if the value is invalid
+ */
+export function validateWaitForVmCreationCompletion(value: any): boolean {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+    
+    if (typeof value === 'string') {
+        const lowerValue = value.toLowerCase().trim();
+        if (lowerValue === 'true') {
+            return true;
+        } else if (lowerValue === 'false') {
+            return false;
+        } else {
+            throw new Error(`Invalid waitForVmCreationCompletion string: ${value}. Expected 'true' or 'false'.`);
+        }
+    }
+
+    throw new Error(`Invalid waitForVmCreationCompletion type: ${typeof value}. Expected boolean or string 'true'/'false'.`);
+}
+
+/**
  * Validates and returns a BatchOrchestratorInput, throwing an error if invalid
  * @param obj The object to validate
  * @returns Validated BatchOrchestratorInput with normalized Date objects
@@ -156,6 +182,12 @@ export function validateBatchOrchestratorInput(obj: any): RecoveryBatch {
       } else if (typeof obj.useOriginalIpAddress !== 'boolean') {
         errors.push('useOriginalIpAddress must be a boolean (true or false)');
       }
+
+      if (obj.waitForVmCreationCompletion === undefined || obj.waitForVmCreationCompletion === null) {
+        errors.push('waitForVmCreationCompletion is required');
+      } else if (typeof obj.waitForVmCreationCompletion !== 'boolean') {
+        errors.push('waitForVmCreationCompletion must be a boolean (true or false)');
+      }
       
       if (obj.vmFilter !== undefined && !Array.isArray(obj.vmFilter)) {
         errors.push('vmFilter must be an array if provided');
@@ -171,6 +203,7 @@ export function validateBatchOrchestratorInput(obj: any): RecoveryBatch {
     targetResourceGroup: obj.targetResourceGroup,
     maxTimeGenerated: validateMaxTimeGenerated(obj.maxTimeGenerated),
     useOriginalIpAddress: obj.useOriginalIpAddress,
+    waitForVmCreationCompletion: obj.waitForVmCreationCompletion,
     vmFilter: obj.vmFilter
   };
   
@@ -243,6 +276,7 @@ export function createDefaultBatchOrchestratorInput(): RecoveryBatch {
     targetResourceGroup: 'example-rg',
     maxTimeGenerated: new Date().toISOString(), // Current datetime as ISO string
     useOriginalIpAddress: false, // Default to false for dynamic IP allocation
+    waitForVmCreationCompletion: false,
     vmFilter: ["vm-01", "vm-02"]
   };
 }
@@ -294,7 +328,8 @@ export function sanitizeBatchOrchestratorInput(input: any): RecoveryBatch {
         : [String(input.targetSubnetId || input.targetSubnetIds || '').trim()], // Handle both old and new property names
     targetResourceGroup: String(input.targetResourceGroup || '').trim(),
     maxTimeGenerated: validatedMaxTime,
-    useOriginalIpAddress: Boolean(input.useOriginalIpAddress) // Convert to boolean
+    useOriginalIpAddress: Boolean(input.useOriginalIpAddress), // Convert to boolean
+    waitForVmCreationCompletion: Boolean(input.waitForVmCreationCompletion) // Convert to boolean
   };
 
   // Only include vmFilter if it's a valid array

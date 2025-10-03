@@ -3,6 +3,7 @@ import * as df from 'durable-functions';
 import { RecoveryBatch } from '../common/interfaces';
 import { isBatchOrchestratorInput, validateBatchOrchestratorInput, validateBatchOrchestratorInputStrict } from '../common/validation';
 import { generateGuid } from '../common/utils';
+import { QUEUE_RECOVERY_JOBS } from '../common/constants';
 
 const queueStart = async (queueItem: RecoveryBatch, context: InvocationContext): Promise<void> => {
 
@@ -54,6 +55,7 @@ const queueStart = async (queueItem: RecoveryBatch, context: InvocationContext):
                 subnetCount: input.targetSubnetIds.length,
                 targetResourceGroup: input.targetResourceGroup,
                 useOriginalIpAddress: input.useOriginalIpAddress,
+                waitForVmCreationCompletion: input.waitForVmCreationCompletion,
                 hasVmFilters: !!input.vmFilter,
                 vmFilterCount: input.vmFilter ? input.vmFilter.length : 0
             });
@@ -100,7 +102,7 @@ const queueStart = async (queueItem: RecoveryBatch, context: InvocationContext):
 
 // Register the function to listen to Azure Storage Queue
 app.storageQueue('queueStart', {
-    queueName: 'recovery-jobs', // Queue name
+    queueName: QUEUE_RECOVERY_JOBS, // Queue name
     connection: 'AzureWebJobsStorage', // Connection string setting name
     extraInputs: [df.input.durableClient()],
     handler: queueStart
